@@ -312,7 +312,7 @@ local VALIDATION_DELAY  = 6
 local QUEUE_MAX_RETRIES = 4
 
 -- GROQ
-local GROQ_API_KEY  = "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"
+local GROQ_API_KEY  = "GROQ_API_KEY"
 local GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 local GROQ_MODEL    = "llama-3.3-70b-versatile"
 
