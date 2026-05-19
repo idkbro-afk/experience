@@ -1,0 +1,980 @@
+local ver = " UIs 4.283 "
+local update = [[
+-- Update logs --
+(:8/1/2026 | 5:55 pm: !) Fixed bug
+(:8/1/2026 | 6:00 pm: R) Raw reset GitHub bug.
+(:8/1/2026 | 6:22 pm: !) Fixed bug again
+(:8/1/2026 | -:-- pm: R) GitHub bug
+(:8/1/2026 | 6:49 pm: C) Closed
+(:30/1/2026 | 8:12 pm: U) Update
+(:30/1/2026 | 8:59 pm: D) Disabled top button for bug.
+(:28/3/2026 | 8:32 pm: F&R) Fixed /Globalchat not working and rename from AI-OpenSource to AI-Thinking.
+(:13/4/2026 | 8:42 pm: A) Add "New message" TextLabel.
+(:14/4/2026 | 1:26 am: N) New message system is finally here!
+(:14/4/2026 | 1:33 am: F) FIXED NEW MESSAGE SYSTEM REVERSE WHAT THE FUCK.
+(:14/4/2026 | 1:52 am - 2:27 am: B) Buff from 99+ to 9999+ in new message system.
+(:15/4/2026 | 3:29 pm: A) Add Colorful to message and changed BackgroundTransparency to 0.85
+(:4/5/2026 | 5:10 am: F) Fixed AI ChatGPT Response.
+(:4/5/2026 | --:-- pm: A) Add NVIDIA API support (nvapi- key, z-ai/glm-5.1, thinking tokens).
+(:4/5/2026 | --:-- pm: F) Fixed Error Code 3 crash on load.
+(:17/5/2026 | --:-- pm: F) Fixed NVIDIA GLM-5.1 request (chat_template_kwargs).
+(:19/5/2026 | --:-- pm: R) Replaced NVIDIA with Groq (llama-3.3-70b-versatile).
+]]
+
+-- ========== SERVICES ==========
+local ok_services, err_services = pcall(function()
+    _G.CoreGui           = game:GetService("CoreGui")
+    _G.StarterGui        = game:GetService("StarterGui")
+    _G.GuiService        = game:GetService("GuiService")
+    _G.Players           = game:GetService("Players")
+    _G.RunService        = game:GetService("RunService")
+    _G.TweenService      = game:GetService("TweenService")
+    _G.UserInputService  = game:GetService("UserInputService")
+    _G.HttpService       = game:GetService("HttpService")
+    _G.TextChatService   = game:GetService("TextChatService")
+    _G.ReplicatedStorage = game:GetService("ReplicatedStorage")
+end)
+if not ok_services then warn("[AI-Thinking] Services error: "..tostring(err_services)) end
+
+local CoreGui           = _G.CoreGui
+local StarterGui        = _G.StarterGui
+local GuiService        = _G.GuiService
+local Players           = _G.Players
+local RunService        = _G.RunService
+local HttpService       = _G.HttpService
+local TextChatService   = _G.TextChatService
+local ReplicatedStorage = _G.ReplicatedStorage
+local lp                = Players.LocalPlayer
+
+-- ========== FUNCTIONS ==========
+local HCenter = Enum.HorizontalAlignment.Center
+local VCenter = Enum.VerticalAlignment.Center
+local HLeft   = Enum.HorizontalAlignment.Left
+local VTop    = Enum.VerticalAlignment.Top
+local FillH   = Enum.FillDirection.Horizontal
+local FillV   = Enum.FillDirection.Vertical
+local SLayout = Enum.SortOrder.LayoutOrder
+local SName   = Enum.SortOrder.Name
+local ASMBorder     = Enum.ApplyStrokeMode.Border
+local LJMRound      = Enum.LineJoinMode.Round
+
+local function Corner(Scale, Offset, Parent)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(Scale or 0, Offset or 0)
+    c.Parent = Parent
+    return c
+end
+
+local function ListLayout(parent, scale, offset, HZ, VT, SO, FILL)
+    local list = Instance.new("UIListLayout")
+    list.Padding           = UDim.new(scale or 0, offset or 0)
+    list.FillDirection     = FILL or FillH
+    list.HorizontalAlignment = HZ or HCenter
+    list.VerticalAlignment   = VT or VCenter
+    list.SortOrder         = SO or SName
+    list.Parent            = parent
+    return list
+end
+
+local function Stroke(parent, ASM, R, G, B, LJM, Tn, Transy)
+    local s = parent:FindFirstChildOfClass("UIStroke") or Instance.new("UIStroke")
+    s.ApplyStrokeMode = ASM or ASMBorder
+    s.Color           = Color3.fromRGB(R or 255, G or 255, B or 255)
+    s.LineJoinMode    = LJM or LJMRound
+    s.Thickness       = Tn or 1
+    s.Transparency    = Transy or 0
+    s.Parent          = parent
+    return s
+end
+
+-- ========== FIND GUI SAFELY ==========
+local Menu, vAI, gpt
+
+local ok_gui = pcall(function()
+    Menu = CoreGui:WaitForChild("ExperienceSettings", 10).Menu
+    vAI  = Menu.TopBar.Holder.z8_ChatGPT
+    gpt  = Menu.ChatGPT
+end)
+
+if not ok_gui or not gpt then
+    warn("[AI-Thinking] Could not find ExperienceSettings GUI. Aborting.")
+    return
+end
+
+-- destroy old children safely
+for _, name in ipairs({"Line","Disconnected","error","warn"}) do
+    pcall(function()
+        local child = gpt:FindFirstChild(name)
+        if child then child:Destroy() end
+    end)
+end
+
+gpt.Position          = UDim2.new(0.25,0,1,0)
+gpt.Size              = UDim2.new(0.5,0,0.7,0)
+gpt.Name              = "AIOpenSource"
+gpt.BackgroundTransparency = 0.3
+
+-- ========== BUILD UI ==========
+local ins = Instance.new("Frame")
+ins.Position          = UDim2.new(0.02,0,0.02,0)
+ins.Size              = UDim2.new(0.96,0,0.96,0)
+ins.BackgroundTransparency = 1
+ins.Active            = false
+ins.Parent            = gpt
+
+local tl = Instance.new("TextLabel")
+tl.Name               = "Topic"
+tl.Size               = UDim2.new(0.2,0,0.1,0)
+tl.BackgroundTransparency = 1
+tl.Active             = false
+tl.Text               = "AI-Thinking"
+tl.TextColor3         = Color3.fromRGB(255,255,255)
+tl.TextScaled         = true
+tl.Parent             = ins
+
+local tl2 = Instance.new("TextLabel")
+tl2.Name              = "ver"
+tl2.Position          = UDim2.new(0,0,0.07,0)
+tl2.Size              = UDim2.new(0.2,0,0.03,0)
+tl2.BackgroundTransparency = 1
+tl2.Active            = false
+tl2.Text              = "Version:"..ver
+tl2.TextXAlignment    = Enum.TextXAlignment.Left
+tl2.TextColor3        = Color3.fromRGB(255,255,255)
+tl2.TextScaled        = true
+tl2.Parent            = ins
+
+local tb = Instance.new("TextBox")
+tb.Name               = "api"
+tb.Position           = UDim2.new(0.23,0,0,0)
+tb.Size               = UDim2.new(0.3,0,0.1,0)
+tb.BackgroundTransparency = 1
+tb.TextColor3         = Color3.fromRGB(255,255,255)
+tb.PlaceholderText    = "[ Your API here (ChatGPT / Gemini / Groq) ]"
+tb.Text               = ""
+tb.RichText           = true
+tb.TextScaled         = true
+tb.TextSize           = 16
+tb.TextXAlignment     = Enum.TextXAlignment.Left
+tb.Parent             = ins
+
+local con = Instance.new("TextButton")
+con.Name              = "Confirm_api"
+con.Position          = UDim2.new(0.55,0,0,0)
+con.Size              = UDim2.new(0.1,0,0.1,0)
+con.BackgroundTransparency = 1
+con.TextColor3        = Color3.fromRGB(0,255,0)
+con.TextScaled        = true
+con.Text              = "Confirm API"
+con.Parent            = ins
+Corner(0,8,con)
+Stroke(con, ASMBorder, 0,255,0, LJMRound, 1, 0)
+
+local con2 = Instance.new("TextButton")
+con2.Name             = "Unsaved_API"
+con2.Position         = UDim2.new(0.66,0,0,0)
+con2.Size             = UDim2.new(0.1,0,0.1,0)
+con2.BackgroundTransparency = 1
+con2.TextColor3       = Color3.fromRGB(255,0,0)
+con2.TextScaled       = true
+con2.Text             = "Unsaved API"
+con2.Parent           = ins
+Corner(0,8,con2)
+Stroke(con2, ASMBorder, 255,0,0, LJMRound, 1, 0)
+
+local st = Instance.new("TextLabel")
+st.Name               = "Status"
+st.Position           = UDim2.new(0.77,0,0,0)
+st.Size               = UDim2.new(0.23,0,0.1,0)
+st.BackgroundTransparency = 1
+st.Text               = "Status: No key"
+st.TextColor3         = Color3.fromRGB(255,255,255)
+st.TextScaled         = true
+st.Active             = false
+st.Parent             = ins
+Corner(0,8,st)
+Stroke(st, ASMBorder, 255,255,255, LJMRound, 1, 0)
+
+tb.Visible  = false
+con.Visible = false
+con2.Visible = false
+st.Visible  = false
+
+local t = Instance.new("Frame")
+t.Name                = "Text"
+t.Position            = UDim2.new(0,0,1,-40)
+t.Size                = UDim2.new(1,0,0,40)
+t.BackgroundTransparency = 0.8
+t.BackgroundColor3    = Color3.fromRGB(255,255,255)
+t.Active              = false
+t.Parent              = ins
+Corner(0.15,0,t)
+Stroke(t, ASMBorder, 255,255,255, LJMRound, 1, 0)
+
+local ch = Instance.new("TextBox")
+ch.Name               = "chat"
+ch.Position           = UDim2.new(0.02,0,0.02,0)
+ch.Size               = UDim2.new(0.8,0,0.96,0)
+ch.BackgroundTransparency = 1
+ch.TextColor3         = Color3.fromRGB(255,255,255)
+ch.RichText           = true
+ch.Text               = ""
+ch.PlaceholderText    = "Type /Help or Say something..."
+ch.TextSize           = 16
+ch.TextWrap           = true
+ch.TextWrapped        = true
+ch.TextXAlignment     = Enum.TextXAlignment.Left
+ch.ClearTextOnFocus   = false
+ch.MultiLine          = true
+ch.Parent             = t
+
+local se = Instance.new("TextButton")
+se.Name               = "Send"
+se.Position           = UDim2.new(0.932,0,0.08,0)
+se.Size               = UDim2.new(0,35,0,35)
+se.Text               = "→"
+se.TextScaled         = true
+se.TextColor3         = Color3.fromRGB(255,255,255)
+se.BackgroundTransparency = 1
+se.Parent             = t
+
+local si = Instance.new("ScrollingFrame")
+si.Name               = "ChatLogs"
+si.Position           = UDim2.new(0,0,0.13,0)
+si.Size               = UDim2.new(1,0,0.75,0)
+si.BackgroundTransparency = 1
+si.ScrollingDirection = Enum.ScrollingDirection.Y
+si.AutomaticCanvasSize = Enum.AutomaticSize.Y
+si.CanvasSize         = UDim2.new(0,0,0,0)
+si.Parent             = ins
+ListLayout(si, 0, 5, HLeft, VTop, SLayout, FillV)
+
+local newmg = Instance.new("TextLabel")
+newmg.Name            = "NewMessage"
+newmg.Position        = UDim2.new(0.5,0,0.6,0)
+newmg.Size            = UDim2.new(0,20,0,20)
+newmg.BackgroundColor3 = Color3.new(1,1,1)
+newmg.Active          = false
+newmg.Text            = "-"
+newmg.TextScaled      = true
+newmg.TextColor3      = Color3.new(0,0,0)
+newmg.Visible         = false
+newmg.Parent          = vAI
+Corner(1,0,newmg)
+
+-- ========== USER LABELS ==========
+local user = {
+    plr   = "[ You ]: ",
+    chat  = "[ AI ]: ",
+    Error = "[ Error ]: ",
+    Suc   = "[ Success ]: ",
+    Warn  = "[ Warning ]: ",
+    Info  = "[ Information ]: ",
+    Nill  = "",
+    Sys   = "[ System ]: ",
+}
+
+-- ========== TXT FUNCTION ==========
+local function txt(u, text, R, G, B)
+    local cha = Instance.new("TextLabel")
+    cha.Name              = "Text"
+    cha.Active            = false
+    cha.Size              = UDim2.new(0.97,0,0,0)
+    cha.TextColor3        = Color3.fromRGB(R or 255, G or 255, B or 255)
+    cha.BackgroundTransparency = 0.85
+    cha.BackgroundColor3  = Color3.fromRGB(R or 255, G or 255, B or 255)
+    cha.Text              = tostring(u)..tostring(text)
+    cha.TextSize          = 16
+    cha.RichText          = true
+    cha.TextWrapped       = true
+    cha.TextXAlignment    = Enum.TextXAlignment.Left
+    cha.TextYAlignment    = Enum.TextYAlignment.Top
+    cha.AutomaticSize     = Enum.AutomaticSize.Y
+    cha.Parent            = si
+    Corner(0,5,cha)
+    task.defer(function()
+        local layout = si:FindFirstChildOfClass("UIListLayout")
+        if layout then
+            si.CanvasPosition = Vector2.new(0, layout.AbsoluteContentSize.Y)
+        end
+    end)
+    return cha
+end
+
+local function safeTxt(u, t, r, g, b)
+    pcall(txt, u, t, r or 255, g or 255, b or 255)
+end
+
+-- ========== CONFIG ==========
+local DEBUG_MODE        = false
+local REQUEST_INTERVAL  = 0.8
+local VALIDATION_DELAY  = 6
+local QUEUE_MAX_RETRIES = 4
+
+-- GROQ
+local GROQ_API_KEY  = "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"
+local GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+local GROQ_MODEL    = "llama-3.3-70b-versatile"
+
+local GPT_PRESETS = {
+    FREE={mt=64,t=0.5}, PRO={mt=256,t=0.7},
+    PLUS={mt=512,t=0.75}, THINKING={mt=1024,t=0.8}, MASTER={mt=2048,t=0.9},
+}
+local GEMINI_PRESETS = {
+    FREE={mt=64,t=0.4}, PRO={mt=256,t=0.7},
+    PLUS={mt=512,t=0.75}, THINKING={mt=1024,t=0.8}, MASTER={mt=2048,t=0.9},
+}
+local GROQ_PRESETS = {
+    FREE={mt=512,t=0.5}, PRO={mt=2048,t=0.7},
+    PLUS={mt=4096,t=0.75}, THINKING={mt=8192,t=0.8}, MASTER={mt=32768,t=0.9},
+}
+
+local currentPresetGPT   = "FREE"
+local currentPresetGemini = "FREE"
+local currentPresetGROQ  = "MASTER"
+
+-- STATE
+local currentProvider   = "groq"
+local currentApiKey     = GROQ_API_KEY
+local currentCustomUrl  = nil
+local currentCustomAuth = nil
+local currentModel      = "gpt-4o-mini"
+
+-- ========== HTTP ==========
+local httpRequestFunc = nil
+pcall(function()
+    if syn and syn.request then httpRequestFunc = syn.request
+    elseif http and http.request then httpRequestFunc = http.request
+    elseif request then httpRequestFunc = request
+    elseif fluxus and fluxus.request then httpRequestFunc = fluxus.request
+    elseif http_request then httpRequestFunc = http_request
+    end
+end)
+
+local function jsonEncode(t)
+    local ok, r = pcall(HttpService.JSONEncode, HttpService, t)
+    return ok and r or "{}"
+end
+local function jsonDecode(s)
+    local ok, r = pcall(HttpService.JSONDecode, HttpService, s)
+    return ok and r or nil
+end
+
+-- ========== REQUEST QUEUE ==========
+local requestQueue      = {}
+local lastRequestTime   = 0
+local isProcessingQueue = false
+
+local function doRequest(req)
+    if not httpRequestFunc then return nil, "no-http-executor" end
+    local params = {
+        Url     = req.Url     or req.url,
+        Method  = req.Method  or req.method  or "GET",
+        Headers = req.Headers or req.headers or {},
+        Body    = req.Body    or req.body,
+    }
+    local ok, resp = pcall(httpRequestFunc, params)
+    if not ok then return nil, resp end
+    resp.StatusCode = resp.StatusCode or resp.status or 0
+    resp.Body       = resp.Body or resp.body or resp.response or ""
+    return resp
+end
+
+local function enqueueRequest(req)
+    table.insert(requestQueue, {req=req, retries=0})
+    if not isProcessingQueue then
+        task.spawn(function()
+            isProcessingQueue = true
+            while #requestQueue > 0 do
+                local item = table.remove(requestQueue,1)
+                local wait = math.max(0, REQUEST_INTERVAL-(tick()-lastRequestTime))
+                if wait > 0 then task.wait(wait) end
+                lastRequestTime = tick()
+                local ok, res = pcall(doRequest, item.req)
+                if ok and res and res.StatusCode >= 200 and res.StatusCode < 300 then
+                    if item.req.onSuccess then pcall(item.req.onSuccess, res.Body, res) end
+                else
+                    local code = (res and res.StatusCode) or "ERR"
+                    local body = (res and res.Body) or tostring(res)
+                    if item.retries < QUEUE_MAX_RETRIES and (code==429 or code==502 or code==500) then
+                        item.retries += 1
+                        table.insert(requestQueue, item)
+                        task.wait(1 + item.retries*1.5)
+                    else
+                        safeTxt(user.Error, "Code="..tostring(code).." | "..tostring(body):sub(1,300), 255,100,0)
+                        if item.req.onError then pcall(item.req.onError, body, res) end
+                    end
+                end
+            end
+            isProcessingQueue = false
+        end)
+    end
+end
+
+-- ========== ENDPOINTS ==========
+local function endpointsFor(provider)
+    provider = tostring(provider or "groq"):lower()
+
+    if provider == "groq" then
+        return {
+            url = GROQ_BASE_URL.."/chat/completions",
+            makeHeaders = function(key)
+                return {
+                    ["Content-Type"]  = "application/json",
+                    ["Authorization"] = "Bearer "..tostring(key),
+                }
+            end,
+            makeBody = function(prompt)
+                local p = GROQ_PRESETS[currentPresetGROQ] or GROQ_PRESETS.MASTER
+                return jsonEncode({
+                    model       = GROQ_MODEL,
+                    messages    = {{role="user", content=prompt}},
+                    temperature = p.t,
+                    max_tokens  = p.mt,
+                    stream      = false,
+                })
+            end,
+            parseResult = function(bodyText)
+                local d = jsonDecode(bodyText)
+                if not d then return nil end
+                if d.choices and d.choices[1] and d.choices[1].message then
+                    local content = d.choices[1].message.content or ""
+                    if content ~= "" then return content end
+                end
+                return nil
+            end,
+        }
+    end
+
+    if provider == "gemini" then
+        return {
+            url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
+            makeHeaders = function(key)
+                return {["Content-Type"]="application/json",["x-goog-api-key"]=key}
+            end,
+            makeBody = function(prompt)
+                local p = GEMINI_PRESETS[currentPresetGemini] or GEMINI_PRESETS.FREE
+                return jsonEncode({
+                    contents={{role="user",parts={{text=prompt}}}},
+                    generationConfig={maxOutputTokens=p.mt, temperature=p.t, topP=0.9}
+                })
+            end,
+            parseResult = function(bodyText)
+                local d = jsonDecode(bodyText)
+                if not d then return nil end
+                if d.candidates and d.candidates[1] and
+                   d.candidates[1].content and d.candidates[1].content.parts and
+                   d.candidates[1].content.parts[1] then
+                    return d.candidates[1].content.parts[1].text
+                end
+                return nil
+            end,
+        }
+    end
+
+    if provider == "custom" then
+        return {
+            url = currentCustomUrl,
+            makeHeaders = function(key)
+                local h = {["Content-Type"]="application/json"}
+                if currentCustomAuth then h["Authorization"]="Bearer "..tostring(currentCustomAuth) end
+                return h
+            end,
+            makeBody = function(prompt) return jsonEncode({prompt=prompt}) end,
+            parseResult = function(bodyText)
+                local d = jsonDecode(bodyText) or {}
+                return tostring(d.result or d.output or d.text or d.response or "")
+            end,
+        }
+    end
+
+    -- openai default
+    return {
+        url = "https://api.openai.com/v1/responses",
+        makeHeaders = function(key)
+            return {["Content-Type"]="application/json",["Authorization"]="Bearer "..key}
+        end,
+        makeBody = function(prompt)
+            local p = GPT_PRESETS[currentPresetGPT] or GPT_PRESETS.FREE
+            return jsonEncode({
+                model=currentModel,
+                input={{role="user",content={{type="input_text",text=prompt}}}},
+                max_output_tokens=p.mt, temperature=p.t,
+            })
+        end,
+        parseResult = function(bodyText)
+            local d = jsonDecode(bodyText)
+            if not d then return nil end
+            if d.output and d.output[1] and d.output[1].content then
+                for _,item in ipairs(d.output[1].content) do
+                    if item.type=="output_text" and item.text then return item.text end
+                end
+            end
+            if d.choices and d.choices[1] and d.choices[1].message then
+                return d.choices[1].message.content
+            end
+            return nil
+        end,
+    }
+end
+
+local function detectProviderFromKey(key)
+    key = tostring(key)
+    if key:match("^gsk_")  then return "groq" end
+    if key:match("^sk%-")  then return "openai" end
+    if key:match("^AIza")  then return "gemini" end
+    if key:match("^AI")    then return "gemini" end
+    return "openai"
+end
+
+local function askAI(prompt, onSuccess, onError)
+    if not currentProvider or not currentApiKey then
+        safeTxt(user.Error,"No API key. Use /addapi",255,0,0)
+        if onError then pcall(onError,"no_key") end
+        return
+    end
+    local epi = endpointsFor(currentProvider)
+    if not epi or not epi.url then
+        safeTxt(user.Error,"No endpoint for: "..tostring(currentProvider),255,0,0)
+        if onError then pcall(onError,"no_endpoint") end
+        return
+    end
+    local ok_h, headers = pcall(epi.makeHeaders, currentApiKey)
+    local ok_b, body    = pcall(epi.makeBody, prompt)
+    if not ok_h or not ok_b then
+        safeTxt(user.Error,"Failed to build request",255,0,0)
+        if onError then pcall(onError,"build_failed") end
+        return
+    end
+    enqueueRequest({
+        Url     = epi.url,
+        Method  = "POST",
+        Headers = headers,
+        Body    = body,
+        onSuccess = function(bodyText)
+            local ok, parsed = pcall(epi.parseResult, bodyText)
+            local out = (ok and parsed) or tostring(bodyText)
+            if onSuccess then pcall(onSuccess, out) end
+        end,
+        onError = function(errBody)
+            if onError then pcall(onError, tostring(errBody)) end
+        end,
+    })
+end
+
+-- ========== GLOBAL CHAT ==========
+local GLOBAL_CHAT_ON  = false
+local SPY_CHAT_ON     = false
+local GLOBAL_CONN_OLD = nil
+local GLOBAL_CONN_NEW = nil
+local CHAT_COLOR_MODE = "RANDOM"
+local lastMsg         = ""
+
+local function isDuplicate(name, text)
+    local key = name..":"..text
+    if key == lastMsg then return true end
+    lastMsg = key; return false
+end
+
+local function getRandomColor(name)
+    local seed = 0
+    for i=1,#name do seed+=string.byte(name,i) end
+    return (seed*123)%200+55, (seed*321)%200+55, (seed*213)%200+55
+end
+
+local function boostColor(r,g,b)
+    local m = math.max(r,g,b)
+    if m<120 and m>0 then
+        local s=120/m
+        r=math.clamp(r*s,0,255)
+        g=math.clamp(g*s,0,255)
+        b=math.clamp(b*s,0,255)
+    end
+    return r,g,b
+end
+
+local function getChatColor(name)
+    if CHAT_COLOR_MODE=="RANDOM" then return boostColor(getRandomColor(name)) end
+    if CHAT_COLOR_MODE=="CUSTOM" then return 0,255,255 end
+    if CHAT_COLOR_MODE=="TEAM" then
+        for _,plr in ipairs(Players:GetPlayers()) do
+            if plr.Name==name and plr.Team and plr.Team.TeamColor then
+                local c=plr.Team.TeamColor.Color
+                return boostColor(math.floor(c.R*255),math.floor(c.G*255),math.floor(c.B*255))
+            end
+        end
+        return boostColor(getRandomColor(name))
+    end
+    return 200,200,200
+end
+
+local function unhookGlobalChat()
+    if GLOBAL_CONN_OLD then GLOBAL_CONN_OLD:Disconnect(); GLOBAL_CONN_OLD=nil end
+    if GLOBAL_CONN_NEW then GLOBAL_CONN_NEW:Disconnect(); GLOBAL_CONN_NEW=nil end
+end
+
+local function hookGlobalChat()
+    unhookGlobalChat()
+    pcall(function()
+        GLOBAL_CONN_NEW = TextChatService.MessageReceived:Connect(function(msg)
+            if not GLOBAL_CHAT_ON or not msg.TextSource then return end
+            local name = msg.TextSource.Name
+            local text = msg.Text or ""
+            if name==Players.LocalPlayer.Name then return end
+            if isDuplicate(name,text) then return end
+            local r,g,b = getChatColor(name)
+            safeTxt(user.Nill,"[GLOBAL] ["..name.."]: "..text,r,g,b)
+        end)
+    end)
+    pcall(function()
+        local chatEvents = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+        if not chatEvents then return end
+        local event = chatEvents:FindFirstChild("OnMessageDoneFiltering")
+        if not event then return end
+        GLOBAL_CONN_OLD = event.OnClientEvent:Connect(function(msgData)
+            if not GLOBAL_CHAT_ON then return end
+            if type(msgData)~="table" then return end
+            if not msgData.FromSpeaker or not msgData.Message then return end
+            if msgData.FromSpeaker==Players.LocalPlayer.Name then return end
+            if isDuplicate(msgData.FromSpeaker,msgData.Message) then return end
+            local r,g,b = getChatColor(msgData.FromSpeaker)
+            safeTxt(user.Nill,"[GLOBAL] ["..msgData.FromSpeaker.."]: "..msgData.Message,r,g,b)
+        end)
+    end)
+end
+
+-- ========== COMMANDS ==========
+local HELP_TEXT = [=[
+/Help                                         - show commands
+/Cal or /Calculate [expr]                     - math
+/ClearText                                    - clear logs
+/AddAPI [ChatGPT/Gemini/Groq/custom] [KEY]    - set API
+/UnsaveAPI                                    - remove API
+/OWINE [URL]                                  - open website
+/Loadstring [URL]                             - run remote script
+/Script [[CODE]]                              - run code
+/CheckHTTP                                    - check http
+/GPTSwitch [FREE/PRO/PLUS/THINKING/MASTER]    - GPT preset
+/GEMINISwitch [FREE/PRO/PLUS/THINKING/MASTER] - Gemini preset
+/GROQSwitch [FREE/PRO/PLUS/THINKING/MASTER]   - Groq preset
+/ResetRateLimit                               - reset queue
+/DumpStatus                                   - show state
+/GlobalChat [ON/OFF]                          - global chat
+/SpyChat [ON/OFF]                             - spy chat
+]=]
+
+local function clearChatLogs()
+    for _,v in ipairs(si:GetChildren()) do
+        if v:IsA("TextLabel") then v:Destroy() end
+    end
+end
+
+local function calculate(expr)
+    if not expr or expr=="" then return nil,"empty" end
+    local fn,err = loadstring("return "..expr)
+    if not fn then return nil,err end
+    local ok,res = pcall(fn)
+    if not ok then return nil,res end
+    return res
+end
+
+local function setStatusText(s)
+    pcall(function() st.Text = "Status: "..tostring(s) end)
+end
+
+local function handleCommand(msg)
+    local lower = tostring(msg):lower()
+
+    if lower:match("^/help") then
+        safeTxt(user.Nill,"Commands:",180,180,180)
+        for line in HELP_TEXT:gmatch("[^\n]+") do
+            safeTxt(user.Nill, line, 180,180,180)
+        end
+        return true
+    end
+
+    if lower:match("^/cleartext") then
+        clearChatLogs()
+        safeTxt(user.Suc,"Chat cleared",0,255,0)
+        return true
+    end
+
+    if lower:match("^/cal%s+") or lower:match("^/calculate%s+") then
+        local expr = msg:match("^/%S+%s+(.+)$") or ""
+        local res,err = calculate(expr)
+        if not res then safeTxt(user.Error,"Math error: "..tostring(err),255,0,0)
+        else safeTxt(user.Suc,"Result = "..tostring(res),0,255,0) end
+        return true
+    end
+
+    if lower:match("^/addapi") then
+        local parts = {}
+        for w in msg:gmatch("%S+") do table.insert(parts,w) end
+        if #parts < 3 then
+            safeTxt(user.Error,"Usage: /addapi [ChatGPT/Gemini/Groq/custom] [KEY]",255,0,0)
+            return true
+        end
+        local name = parts[2]:lower()
+        local key  = parts[3]
+        if name:match("groq") then
+            currentProvider="groq"; currentApiKey=key
+            safeTxt(user.Info,"Groq key set! Model: "..GROQ_MODEL,0,170,255)
+        elseif name:match("chat") then
+            currentProvider="openai"; currentApiKey=key
+            safeTxt(user.Info,"OpenAI key set.",0,170,255)
+        elseif name:match("gemini") then
+            currentProvider="gemini"; currentApiKey=key
+            safeTxt(user.Info,"Gemini key set.",0,170,255)
+        elseif name:match("custom") then
+            currentProvider="custom"; currentCustomUrl=parts[3]
+            currentCustomAuth=parts[4] or nil; currentApiKey=currentCustomAuth
+            safeTxt(user.Info,"Custom endpoint set.",0,170,255)
+        else
+            currentApiKey=key; currentProvider=detectProviderFromKey(key)
+            safeTxt(user.Info,"Key set. Provider: "..tostring(currentProvider),0,170,255)
+        end
+        setStatusText(currentProvider.." key set")
+        return true
+    end
+
+    if lower:match("^/unsaveapi") or lower:match("^/unapi") then
+        currentProvider=nil; currentApiKey=nil
+        currentCustomUrl=nil; currentCustomAuth=nil
+        setStatusText("No key")
+        safeTxt(user.Info,"API unsaved",0,170,255)
+        return true
+    end
+
+    if lower:match("^/openwebsiteinexperience") or lower:match("^/owine") then
+        local url = (msg:match("^/%S+%s+(.+)$") or ""):gsub("^%s+",""):gsub("%s+$","")
+        if url=="" then safeTxt(user.Error,"Usage: /OWINE [URL]",255,0,0); return true end
+        local ok,e = pcall(function()
+            if GuiService and GuiService.OpenBrowserWindow then
+                GuiService:OpenBrowserWindow(url)
+            else
+                StarterGui:SetCore("OpenBrowserWindow",url)
+            end
+        end)
+        if ok then safeTxt(user.Suc,"Opened: "..url,0,255,0)
+        else safeTxt(user.Error,"Failed: "..tostring(e),255,0,0) end
+        return true
+    end
+
+    if lower:match("^/loadstring") then
+        local url = (msg:match("^/%S+%s+(.+)$") or ""):gsub("^%s+",""):gsub("%s+$","")
+        if url=="" then safeTxt(user.Error,"Usage: /loadstring [URL]",255,0,0); return true end
+        safeTxt(user.Sys,"Fetching...",255,90,0)
+        local ok,res = pcall(function() return loadstring(game:HttpGet(url))() end)
+        if ok then safeTxt(user.Suc,"Executed",0,255,0)
+        else safeTxt(user.Error,tostring(res),255,0,0) end
+        return true
+    end
+
+    if lower:match("^/script") then
+        local code = (msg:match("^/%S+%s+(.+)$") or ""):gsub("^%[%[",""):gsub("%]%]$","")
+        if code=="" then safeTxt(user.Error,"Usage: /script [[CODE]]",255,0,0); return true end
+        local fn,err = loadstring(code)
+        if not fn then safeTxt(user.Error,"Compile: "..tostring(err),255,0,0)
+        else
+            local ok,r = pcall(fn)
+            if ok then safeTxt(user.Suc,"Executed",0,255,0)
+            else safeTxt(user.Error,tostring(r),255,0,0) end
+        end
+        return true
+    end
+
+    if lower:match("^/checkhttp") then
+        safeTxt(user.Info,"HTTP: "..tostring(httpRequestFunc~=nil),0,170,255)
+        return true
+    end
+
+    if lower:match("^/gptswitch") then
+        local c = msg:match("^/gptswitch%s+(%S+)")
+        if c and GPT_PRESETS[c:upper()] then
+            currentPresetGPT=c:upper()
+            safeTxt(user.Suc,"GPT preset: "..currentPresetGPT,0,255,0)
+        else safeTxt(user.Error,"Usage: /GPTSwitch [FREE/PRO/PLUS/THINKING/MASTER]",255,0,0) end
+        return true
+    end
+
+    if lower:match("^/geminiswitch") then
+        local c = msg:match("^/geminiswitch%s+(%S+)")
+        if c and GEMINI_PRESETS[c:upper()] then
+            currentPresetGemini=c:upper()
+            safeTxt(user.Suc,"Gemini preset: "..currentPresetGemini,0,255,0)
+        else safeTxt(user.Error,"Usage: /GEMINISwitch [FREE/PRO/PLUS/THINKING/MASTER]",255,0,0) end
+        return true
+    end
+
+    if lower:match("^/groqswitch") then
+        local c = msg:match("^/groqswitch%s+(%S+)")
+        if c and GROQ_PRESETS[c:upper()] then
+            currentPresetGROQ=c:upper()
+            safeTxt(user.Suc,
+                "Groq preset: "..currentPresetGROQ..
+                " | max_tokens="..tostring(GROQ_PRESETS[currentPresetGROQ].mt),
+                0,255,0)
+        else safeTxt(user.Error,"Usage: /GROQSwitch [FREE/PRO/PLUS/THINKING/MASTER]",255,0,0) end
+        return true
+    end
+
+    if lower:match("^/resetratelimit") or lower:match("^/reratelimit") then
+        requestQueue={}; isProcessingQueue=false
+        safeTxt(user.Suc,"Queue reset",0,255,0)
+        return true
+    end
+
+    if lower:match("^/dumpstatus") then
+        safeTxt(user.Info,
+            "Provider="..tostring(currentProvider)..
+            " Key="..tostring(currentApiKey~=nil)..
+            " GroqPreset="..tostring(currentPresetGROQ),
+            0,170,255)
+        return true
+    end
+
+    if lower:match("^/globalchat") then
+        local flag = (msg:match("^/globalchat%s*(%S*)") or ""):upper()
+        local newState = (flag=="ON")
+        if GLOBAL_CHAT_ON==newState then
+            safeTxt(user.Info,"Already "..tostring(newState),255,255,0)
+            return true
+        end
+        GLOBAL_CHAT_ON=newState
+        if GLOBAL_CHAT_ON then hookGlobalChat() else unhookGlobalChat() end
+        safeTxt(user.Suc,"GlobalChat: "..tostring(GLOBAL_CHAT_ON),0,255,0)
+        return true
+    end
+
+    if lower:match("^/spychat") then
+        local flag = (msg:match("^/spychat%s*(%S*)") or ""):upper()
+        SPY_CHAT_ON=(flag=="ON")
+        safeTxt(user.Suc,"SpyChat: "..tostring(SPY_CHAT_ON),0,255,0)
+        return true
+    end
+
+    return false
+end
+
+-- ========== SEND ==========
+local function sendFromUI()
+    local raw = tostring(ch.Text or ""):gsub("^%s+",""):gsub("%s+$","")
+    if raw=="" then return end
+    if raw=="/" then
+        safeTxt(user.Warn,"Single '/' is not a command",255,200,0)
+        ch.Text=""
+        return
+    end
+    if raw:sub(1,1)=="/" then
+        local ok,res = pcall(handleCommand,raw)
+        if not ok then safeTxt(user.Error,"Command error: "..tostring(res),255,0,0) end
+        ch.Text=""
+        return
+    end
+    safeTxt(user.plr, raw, 255,255,255)
+    ch.Text=""
+    askAI(raw,
+        function(answer)
+            safeTxt(user.chat, answer or "(no answer)", 85,255,255)
+        end,
+        function(err)
+            safeTxt(user.Error,"AI failed: "..tostring(err),255,0,0)
+        end
+    )
+end
+
+local function doConfirm()
+    local key = tostring(tb.Text or ""):gsub("%s+","")
+    if key=="" then safeTxt(user.Error,"API key empty",255,0,0); return end
+    currentApiKey   = key
+    currentProvider = detectProviderFromKey(key)
+    setStatusText("Connecting ("..currentProvider..")")
+    safeTxt(user.Info,"Validating key...",0,170,255)
+    task.spawn(function()
+        task.wait(VALIDATION_DELAY)
+        askAI("ping",
+            function() setStatusText("Connected"); safeTxt(user.Suc,"API validated!",0,255,0) end,
+            function(e) setStatusText("Invalid key"); safeTxt(user.Error,"Validation failed: "..tostring(e),255,0,0) end
+        )
+    end)
+end
+
+local function doUnsaved()
+    currentProvider=nil; currentApiKey=nil
+    currentCustomUrl=nil; currentCustomAuth=nil
+    setStatusText("No key")
+    safeTxt(user.Info,"API unsaved",0,170,255)
+end
+
+pcall(function() se.MouseButton1Click:Connect(sendFromUI) end)
+pcall(function() ch.FocusLost:Connect(function(enter) if enter then sendFromUI() end end) end)
+pcall(function() con.MouseButton1Click:Connect(doConfirm) end)
+pcall(function() con2.MouseButton1Click:Connect(doUnsaved) end)
+
+-- ========== STARTUP MESSAGES ==========
+txt(user.Nill, "Working fine!", 180,180,180)
+txt(user.Nill, "Version:"..ver.." | © Copyright LighterCyan", 180,180,180)
+txt(user.Info, update, 0,170,255)
+txt(user.Info, "Use /help for commands.", 0,170,255)
+txt(user.Nill, [=[
+[==> OFFICIAL ANNOUNCEMENT <==]
+AI-Thinking is back with Groq support!
+]=], 255,100,0)
+txt(user.Warn, "Do NOT share your API key with anyone.", 255,255,0)
+txt(user.Nill, "[====== Chat ======]", 180,180,180)
+
+setStatusText("Groq ready")
+safeTxt(user.Suc, "Groq API loaded! Model: "..GROQ_MODEL.." | Preset: "..currentPresetGROQ, 0,255,0)
+safeTxt(user.Info, "Just start chatting! Groq is your default AI.", 0,170,255)
+
+-- ========== NEW MESSAGE COUNTER ==========
+local ON_IMAGE  = "rbxassetid://92243936349090"
+local unread    = 0
+local lastCount = 0
+
+local function countAll()
+    local count = 0
+    for _,v in ipairs(si:GetChildren()) do
+        if not v:IsA("UIListLayout")
+        and not v:IsA("UIPadding")
+        and not v:IsA("UICorner")
+        and not v:IsA("UIStroke") then
+            count += 1
+        end
+    end
+    return count
+end
+
+lastCount = countAll()
+
+pcall(function()
+    RunService.RenderStepped:Connect(function()
+        local current = countAll()
+        if vAI.Image ~= ON_IMAGE then
+            if current > lastCount then
+                unread += (current - lastCount)
+                newmg.Visible = true
+                newmg.Text = (unread>9999) and "9999+" or tostring(unread)
+            end
+        else
+            unread = 0
+            newmg.Text = "0"
+            newmg.Visible = false
+        end
+        lastCount = current
+    end)
+end)
+
+-- ========== DEBUG LOOP ==========
+task.spawn(function()
+    while true do
+        if DEBUG_MODE then
+            safeTxt(user.Info,
+                "Q="..#requestQueue..
+                " P="..tostring(currentProvider)..
+                " K="..tostring(currentApiKey~=nil),
+                0,170,255)
+        end
+        task.wait(8)
+    end
+end)
